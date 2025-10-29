@@ -1,0 +1,52 @@
+{
+    "model_type": "ONNX",
+    "npu_mode": "NPU3",
+    "quant": {
+      "input_configs": [
+        {
+          "tensor_name": "encoder_input",
+          "calibration_dataset": "./calib_dataset/encoder_input.tar.gz",
+          "calibration_size": -1,
+          "calibration_format": "Numpy"
+        },
+        {
+          "tensor_name": "encoder_input_lengths",
+          "calibration_dataset": "./calib_dataset/encoder_input_lengths.tar.gz",
+          "calibration_size": -1,
+          "calibration_format": "Numpy"
+        }
+      ],
+      "layer_configs": [
+        {
+          "start_tensor_names": ["DEFAULT"],
+          "end_tensor_names": ["DEFAULT"],
+          "data_type": "U16"
+        },
+        // {
+        //   // "Softmax", "Where", "Add", "MatMul", "FullyConnected", 
+        //   "op_types": ["FullyConnected", "LayerNormalization"],
+        //   "data_type": "U16"
+        // }
+      ],
+      "calibration_method": "MinMax",
+      "conv_bias_data_type": "FP32",
+      "enable_smooth_quant": true,
+      "disable_auto_refine_scale": true,
+      "precision_analysis": true,
+      "precision_analysis_method": "EndToEnd",
+      "transformer_opt_level": 1
+    },
+    "input_processors": [
+      {
+        "tensor_name": "encoder_input",
+        "src_dtype": "FP32"
+      },
+      {
+        "tensor_name": "encoder_input_lengths",
+        "src_dtype": "S32"
+      }
+    ],
+    "compiler": {
+      "check": 0
+    }
+  }

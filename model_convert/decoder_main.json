@@ -1,0 +1,82 @@
+{
+    "model_type": "ONNX",
+    "npu_mode": "NPU3",
+    "quant": {
+      "input_configs": [
+        {
+          "tensor_name": "tokens",
+          "calibration_dataset": "./calib_dataset/tokens.tar.gz",
+          "calibration_size": 1,
+          "calibration_format": "Numpy"
+        },
+        // {
+        //   "tensor_name": "in_n_layer_self_k_cache",
+        //   "calibration_dataset": "./calib_dataset/in_n_layer_self_k_cache.tar.gz",
+        //   "calibration_size": -1,
+        //   "calibration_format": "Numpy"
+        // },
+        {
+          "tensor_name": "n_layer_cross_k",
+          "calibration_dataset": "./calib_dataset/n_layer_cross_k.tar.gz",
+          "calibration_size": 1,
+          "calibration_format": "Numpy"
+        },
+        {
+          "tensor_name": "n_layer_cross_v",
+          "calibration_dataset": "./calib_dataset/n_layer_cross_v.tar.gz",
+          "calibration_size": 1,
+          "calibration_format": "Numpy"
+        },
+        {
+          "tensor_name": "cross_attn_mask",
+          "calibration_dataset": "./calib_dataset/cross_attn_mask.tar.gz",
+          "calibration_size": 1,
+          "calibration_format": "Numpy"
+        }
+      ],
+      "layer_configs": [
+        {
+          "start_tensor_names": ["DEFAULT"],
+          "end_tensor_names": ["DEFAULT"],
+          "data_type": "U8"
+        },
+        {
+          // "Softmax", "Where", "Add", "MatMul", "FullyConnected", 
+          "op_types": ["Transpose", "Reshape", "Concat"],
+          "data_type": "FP32"
+        }
+      ],
+      "calibration_method": "MinMax",
+      "conv_bias_data_type": "FP32",
+      "enable_smooth_quant": true,
+      "disable_auto_refine_scale": true,
+      "precision_analysis": true,
+      "precision_analysis_method": "EndToEnd",
+      "transformer_opt_level": 1
+    },
+    "input_processors": [
+      {
+        "tensor_name": "tokens",
+        "src_dtype": "S32"
+      },
+    //   {
+    //     "tensor_name": "n_layer_self_k_cache",
+    //     "src_dtype": "FP32"
+    //   },
+      {
+        "tensor_name": "n_layer_cross_k",
+        "src_dtype": "FP32"
+      },
+      {
+        "tensor_name": "n_layer_cross_v",
+        "src_dtype": "FP32"
+      },
+      {
+        "tensor_name": "cross_attn_mask",
+        "src_dtype": "FP32"
+      }
+    ],
+    "compiler": {
+      "check": 0
+    }
+  }
