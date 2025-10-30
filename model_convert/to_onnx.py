@@ -90,7 +90,7 @@ def export_encoder(fireredasr_model, args, model_args):
     encoder.eval()
 
     # forge encoder input
-    encoder_input = torch.randn(1, calc_feat_len(10), 80)
+    encoder_input = torch.randn(1, calc_feat_len(args.max_dur), 80)
     encoder_input_lengths = torch.tensor([100], dtype=torch.int64)
     
     n_layer_cross_k, n_layer_cross_v, cross_attn_mask = encoder(
@@ -116,27 +116,6 @@ def export_encoder(fireredasr_model, args, model_args):
             output_names=["n_layer_cross_k", 
                         "n_layer_cross_v",
                         "cross_attn_mask"],
-            # dynamic_axes={
-            #     "encoder_input": {
-            #         0: "batch_size",
-            #         1: "input_length"
-            #     },
-            #     "encoder_input_lengths": {
-            #         0: "batch_size"
-            #     },
-            #     "n_layer_cross_k": {
-            #         1: "batch_size",
-            #         2: "length"
-            #     },
-            #     "n_layer_cross_v": {
-            #         1: "batch_size",
-            #         2: "length"
-            #     },
-            #     "cross_attn_mask": {
-            #         0: "batch_size",
-            #         2: "length"
-            #     }
-            # },
             external_data=True
         )
     
@@ -182,43 +161,6 @@ def export_encoder(fireredasr_model, args, model_args):
         
     print("export onnx encoder done.")
     
-    # Generate int8 quantization models
-    # See https://onnxruntime.ai/docs/performance/model-optimizations/quantization.html#data-type-selection
-    print("Generate int8 quantization models")
-    
-    if not os.path.exists(args.encoder_int8):
-        os.mkdir(args.encoder_int8)
-    onnx_encoder_int8_file = "encoder_int8.onnx"
-    onnx_encoder_int8_file = os.path.join(args.encoder_int8, onnx_encoder_int8_file)
-    quantize_dynamic(
-        model_input=onnx_encoder_file,
-        model_output=onnx_encoder_int8_file,
-        op_types_to_quantize=["MatMul"],
-        weight_type=QuantType.QInt8,
-    )
-    
-    cmvn_mean, cmvn_inv_stddev = read_kaldi_cmvn(args.cmvn)
-    cmvn_mean = [str(m) for m in cmvn_mean]
-    cmvn_inv_stddev = [str(istd) for istd in cmvn_inv_stddev]
-    
-    encoder_meta_data = {
-        "model_type": "FireRedAsrAED-L",
-        "maintainer": "LiangHu",
-        "feat_dim": model_args.idim,
-        "feat_type": "fbank",
-        "num_decoder_layers": model_args.n_layers_dec,
-        "num_head": model_args.n_head,
-        "head_dim": model_args.d_model // model_args.n_head,
-        "max_len": args.max_len,    
-        "sos": model_args.sos_id,
-        "eos": model_args.eos_id,
-        "cmvn_mean": ','.join(cmvn_mean),
-        "cmvn_inv_stddev": ','.join(cmvn_inv_stddev)
-    }
-    
-    # add_meta_data(onnx_encoder_file, encoder_meta_data)
-    add_meta_data(onnx_encoder_int8_file, encoder_meta_data)
-    
     return n_layer_cross_k, n_layer_cross_v, cross_attn_mask
 
 
@@ -250,7 +192,7 @@ def export_decoder(fireredasr_model, args,
         (
             len(decoder.blocks),
             batch_size * beam_size,
-            args.max_len,
+            args.decode_max_len,
             1280
         )
     )
@@ -258,115 +200,9 @@ def export_decoder(fireredasr_model, args,
         (
             len(decoder.blocks),
             batch_size * beam_size,
-            args.max_len,
+            args.decode_max_len,
             1280
         )
-    )
-    offset = torch.zeros(1, dtype=torch.int64)
-    self_attn_mask = torch.empty(batch_size * beam_size, 
-                                 tokens.shape[-1], tokens.shape[-1]
-                                 ).fill_(-np.inf).triu_(1) # fill_(-np.inf)
-    self_attn_mask = self_attn_mask[:, -1:, :]
-
-    logits, out_n_layer_self_k_cache, out_n_layer_self_v_cache = decoder(
-        tokens,
-        n_layer_self_k_cache,
-        n_layer_self_v_cache,
-        n_layer_cross_k,
-        n_layer_cross_v,
-        offset,
-        self_attn_mask,
-        cross_attn_mask
-    )
-
-    if not os.path.exists(args.decoder):
-        os.makedirs(args.decoder)
-    onnx_decoder_file = os.path.join(args.decoder, "decoder.onnx")
-
-    with torch.no_grad():
-        torch.onnx.export(
-            decoder,
-            (tokens,
-            n_layer_self_k_cache,
-            n_layer_self_v_cache,
-            n_layer_cross_k,
-            n_layer_cross_v,
-            offset,
-            self_attn_mask,
-            cross_attn_mask),
-            onnx_decoder_file,
-            export_params=True,
-            opset_version=13,
-            verbose=False,
-            input_names=["tokens",
-                        "in_n_layer_self_k_cache",
-                        "in_n_layer_self_v_cache",
-                        "n_layer_cross_k",
-                        "n_layer_cross_v",
-                        "offset",
-                        "self_attn_mask",
-                        "cross_attn_mask"],
-            output_names=["logits",
-                        "out_n_layer_self_k_cache",
-                        "out_n_layer_self_v_cache"],
-            dynamic_axes={
-                "tokens": {0: "n_audio", 1: "n_tokens"},
-                "in_n_layer_self_k_cache": {1: "n_audio"},
-                "in_n_layer_self_v_cache": {1: "n_audio"},
-                "n_layer_cross_k": {1: "n_audio", 2: "T"},
-                "n_layer_cross_v": {1: "n_audio", 2: "T"},
-                "self_attn_mask": {0: "n_audio", 2: "T"},
-                "cross_attn_mask": {0: "n_audio", 2: "T"},
-            },
-            external_data=True
-        )
-
-    onnx.checker.check_model(onnx_decoder_file)
-    ort_session = onnxruntime.InferenceSession(onnx_decoder_file)
-
-    onnx_tokens = to_numpy(tokens)
-    onnx_n_layer_self_k_cache = to_numpy(n_layer_self_k_cache)
-    onnx_n_layer_self_v_cache = to_numpy(n_layer_self_v_cache)
-    onnx_n_layer_cross_k = to_numpy(n_layer_cross_k)
-    onnx_n_layer_cross_v = to_numpy(n_layer_cross_v)
-    onnx_offset = to_numpy(offset)
-    onnx_self_attn_mask = to_numpy(self_attn_mask)
-    onnx_cross_attn_mask = to_numpy(cross_attn_mask)
-
-    ort_inputs = {ort_session.get_inputs()[0].name: onnx_tokens,
-                  ort_session.get_inputs()[1].name: onnx_n_layer_self_k_cache,
-                  ort_session.get_inputs()[2].name: onnx_n_layer_self_v_cache,
-                  ort_session.get_inputs()[3].name: onnx_n_layer_cross_k,
-                  ort_session.get_inputs()[4].name: onnx_n_layer_cross_v,
-                  ort_session.get_inputs()[5].name: onnx_offset,
-                  ort_session.get_inputs()[6].name: onnx_self_attn_mask,
-                  ort_session.get_inputs()[7].name: onnx_cross_attn_mask}
-    ort_outputs = ort_session.run(None, ort_inputs)
-    
-    try:
-        np.testing.assert_allclose(to_numpy(logits), ort_outputs[0], rtol=1e-03, atol=1e-05)
-    except AssertionError as e:
-        print(e)    
-    try:
-        np.testing.assert_allclose(to_numpy(out_n_layer_self_k_cache), ort_outputs[1], rtol=1e-03, atol=1e-05)
-    except AssertionError as e:
-        print(e)  
-    try:
-        np.testing.assert_allclose(to_numpy(out_n_layer_self_v_cache), ort_outputs[2], rtol=1e-03, atol=1e-05)
-    except AssertionError as e:
-        print(e)
-    
-    print("export onnx decoder done.")
-    
-    if not os.path.exists(args.decoder_int8):
-        os.mkdir(args.decoder_int8)
-    onnx_decoder_int8_file = "decoder_int8.onnx"
-    onnx_decoder_int8_file = os.path.join(args.decoder_int8, onnx_decoder_int8_file)
-    quantize_dynamic(
-        model_input=onnx_decoder_file,
-        model_output=onnx_decoder_int8_file,
-        op_types_to_quantize=["MatMul"],
-        weight_type=QuantType.QInt8,
     )
 
     # decoder main
@@ -409,22 +245,13 @@ def export_decoder(fireredasr_model, args,
             output_names=["logits",
                         "out_n_layer_self_k_cache",
                         "out_n_layer_self_v_cache"],
-            # dynamic_axes={
-            #     "tokens": {0: "n_audio", 1: "n_tokens"},
-            #     "in_n_layer_self_k_cache": {1: "n_audio"},
-            #     "in_n_layer_self_v_cache": {1: "n_audio"},
-            #     "n_layer_cross_k": {1: "n_audio", 2: "T"},
-            #     "n_layer_cross_v": {1: "n_audio", 2: "T"},
-            #     "self_attn_mask": {0: "n_audio", 2: "T"},
-            #     "cross_attn_mask": {0: "n_audio", 2: "T"},
-            # },
             external_data=True
         )
     print(f"Export decoder_main to {onnx_decoder_file}")
 
     # decoder loop
     self_attn_mask = torch.empty(batch_size * beam_size, 
-                                 1, args.max_len
+                                 1, args.decode_max_len
                                  ).fill_(-np.inf).triu_(1) # fill_(-np.inf)
     self_attn_mask = self_attn_mask[:, -1:, :]
 
@@ -464,15 +291,6 @@ def export_decoder(fireredasr_model, args,
             output_names=["logits",
                         "out_n_layer_self_k_cache",
                         "out_n_layer_self_v_cache"],
-            # dynamic_axes={
-            #     "tokens": {0: "n_audio", 1: "n_tokens"},
-            #     "in_n_layer_self_k_cache": {1: "n_audio"},
-            #     "in_n_layer_self_v_cache": {1: "n_audio"},
-            #     "n_layer_cross_k": {1: "n_audio", 2: "T"},
-            #     "n_layer_cross_v": {1: "n_audio", 2: "T"},
-            #     "self_attn_mask": {0: "n_audio", 2: "T"},
-            #     "cross_attn_mask": {0: "n_audio", 2: "T"},
-            # },
             external_data=True
         )
     print(f"Export decoder_loop to {onnx_decoder_file}")
@@ -517,11 +335,18 @@ def parse_args():
         help="cmvn.ark file"
     )
     parser.add_argument(
-        "--max_len",
+        "--decode_max_len",
         type=int,
         required=False,
         default=128,
         help="decode max len"
+    )
+    parser.add_argument(
+        "--max_dur",
+        type=int,
+        required=False,
+        default=10,
+        help="max audio len"
     )
     return parser.parse_args()
 
