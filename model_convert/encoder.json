@@ -21,12 +21,7 @@
           "start_tensor_names": ["DEFAULT"],
           "end_tensor_names": ["DEFAULT"],
           "data_type": "U16"
-        },
-        // {
-        //   // "Softmax", "Where", "Add", "MatMul", "FullyConnected", 
-        //   "op_types": ["FullyConnected", "LayerNormalization"],
-        //   "data_type": "U16"
-        // }
+        }
       ],
       "calibration_method": "MinMax",
       "conv_bias_data_type": "FP32",

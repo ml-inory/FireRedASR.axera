@@ -301,37 +301,25 @@ def parse_args():
     parser.add_argument(
         "--model", 
         type=str, 
-        required=True,
+        default="pretrained_models/FireRedASR-AED-L/model.pth.tar",
         help="Path to FireRedASR-AED torch model"
     )
     parser.add_argument(
         "--encoder", 
         type=str, 
-        required=True,
+        default="onnx_encoder",
         help="Dir to the exported onnx encoder"
     )
     parser.add_argument(
         "--decoder", 
         type=str, 
-        required=True,
+        default="onnx_decoder",
         help="Dir to the exported onnx decoder"
-    )
-    parser.add_argument(
-        "--encoder_int8", 
-        type=str, 
-        required=True,
-        help="Dir to the exported onnx encoder after int8 quantization"
-    )
-    parser.add_argument(
-        "--decoder_int8", 
-        type=str, 
-        required=True,
-        help="Dir to the exported onnx encoder after int8 quantization"
     )
     parser.add_argument(
         "--cmvn",
         type=str,
-        required=True,
+        default="pretrained_models/FireRedASR-AED-L/cmvn.ark",
         help="cmvn.ark file"
     )
     parser.add_argument(

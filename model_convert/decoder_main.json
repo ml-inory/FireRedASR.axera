@@ -9,12 +9,6 @@
           "calibration_size": 1,
           "calibration_format": "Numpy"
         },
-        // {
-        //   "tensor_name": "in_n_layer_self_k_cache",
-        //   "calibration_dataset": "./calib_dataset/in_n_layer_self_k_cache.tar.gz",
-        //   "calibration_size": -1,
-        //   "calibration_format": "Numpy"
-        // },
         {
           "tensor_name": "n_layer_cross_k",
           "calibration_dataset": "./calib_dataset/n_layer_cross_k.tar.gz",
@@ -41,7 +35,6 @@
           "data_type": "U8"
         },
         {
-          // "Softmax", "Where", "Add", "MatMul", "FullyConnected", 
           "op_types": ["Transpose", "Reshape", "Concat"],
           "data_type": "FP32"
         }
@@ -59,10 +52,6 @@
         "tensor_name": "tokens",
         "src_dtype": "S32"
       },
-    //   {
-    //     "tensor_name": "n_layer_self_k_cache",
-    //     "src_dtype": "FP32"
-    //   },
       {
         "tensor_name": "n_layer_cross_k",
         "src_dtype": "FP32"
