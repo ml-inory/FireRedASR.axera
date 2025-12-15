@@ -29,6 +29,11 @@ conda activate fireredasr
 pip install -r requirements.txt
 ```
 
+```
+$ export PATH=$PWD/fireredasr/:$PWD/fireredasr/utils/:$PATH
+$ export PYTHONPATH=$PWD/:$PYTHONPATH
+```
+
 ### 安装pyaxengine
 
 ```

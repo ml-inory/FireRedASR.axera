@@ -99,7 +99,7 @@ def export_encoder(fireredasr_model, args, model_args):
     )
 
     if not os.path.exists(args.encoder):
-        os.makedirs(args.encoder)
+        os.makedirs(args.encoder, exist_ok=True)
     onnx_encoder_file = os.path.join(args.encoder, "encoder.onnx")
 
     with torch.no_grad():
@@ -217,6 +217,8 @@ def export_decoder(fireredasr_model, args,
 
     pe = decoder.decoder.positional_encoding.pe[0]
 
+    if not os.path.exists(args.decoder):
+        os.makedirs(args.decoder, exist_ok=True)
     onnx_decoder_file = os.path.join(args.decoder, "decoder_main.onnx")
 
     with torch.no_grad():

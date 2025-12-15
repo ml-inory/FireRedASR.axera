@@ -53,7 +53,8 @@ class FireRedASROnnxModel:
         dict_file: str, 
         spm_model_path: str,
         providers=["CPUExecutionProvider"],
-        decode_max_len=128
+        decode_max_len=128,
+        audio_dur=10
     ):
         session_opts = ort.SessionOptions()
         session_opts.inter_op_num_threads = 1
@@ -77,9 +78,9 @@ class FireRedASROnnxModel:
         self.tokenizer = ChineseCharEnglishSpmTokenizer(dict_file, spm_model_path)
         self.encoder = None
         self.decoder = None
+        self.audio_dur = audio_dur
         
         self.init_encoder(encoder_path, providers)
-        self.init_decoder(decoder_path, providers)
         self.init_decoder_main(decoder_path, providers)
         self.init_decoder_loop(decoder_path, providers)
         self.pe = self.init_pe(decoder_path)
@@ -502,7 +503,7 @@ class FireRedASROnnxModel:
                 ) -> List[Dict]:
         feats, lengths, wav_durations = self.feature_extractor(batch_wav_path)
         print(f"feats.shape: {feats.shape}")
-        maxlen = self.calc_feat_len(10)
+        maxlen = self.calc_feat_len(self.audio_dur)
         if feats.shape[1] < maxlen:
             feats = np.concatenate([feats, np.zeros((1, maxlen - feats.shape[1], 80), dtype=np.float32)], axis=1)
         feats = feats[:, :maxlen, :]
@@ -565,19 +566,19 @@ def parse_args():
     parser.add_argument(
         "--cmvn",
         type=str,
-        default="axmodel/cmvn.ark",
+        default="pretrained_models/FireRedASR-AED-L/cmvn.ark",
         help="Path to cmvn"
     )
     parser.add_argument(
         "--dict",
         type=str,
-        default="axmodel/dict.txt",
+        default="pretrained_models/FireRedASR-AED-L/dict.txt",
         help="Path to dict"
     )
     parser.add_argument(
         "--spm_model",
         type=str,
-        default="axmodel/train_bpe1000.model",
+        default="pretrained_models/FireRedASR-AED-L/train_bpe1000.model",
         help="Path to spm model"
     )
     parser.add_argument(
@@ -615,6 +616,12 @@ def parse_args():
         default=128,
         help=""
     )
+    parser.add_argument(
+        "--max_dur",
+        type=int,
+        default=30,
+        help=""
+    )
     
     return parser.parse_args()
     
@@ -642,7 +649,8 @@ def main():
                                      args.dict,
                                      args.spm_model,
                                      [args.provider],
-                                     args.max_len)
+                                     args.max_len,
+                                     args.max_dur)
     
     wf = open(args.hypo, "wt")
     wavlist = parse_wavlist(args.wavlist)
