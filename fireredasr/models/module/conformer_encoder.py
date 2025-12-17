@@ -25,7 +25,11 @@ class ConformerEncoder(nn.Module):
         if pad and self.input_preprocessor.context - 1 > 0:
             # padded_input = F.pad(padded_input,
             #     (0, 0, 0, self.input_preprocessor.context - 1), 'constant', 0.0)
-            padded_input = torch.concat([padded_input, torch.zeros(padded_input.shape[0], self.input_preprocessor.context - 1, padded_input.shape[2])], dim=1)
+            padded_input = torch.concat([padded_input, 
+                                         torch.zeros(padded_input.shape[0], 
+                                                     self.input_preprocessor.context - 1, 
+                                                     padded_input.shape[2], 
+                                                     device=padded_input.device)], dim=1)
 
         src_mask = self.padding_position_is_0(padded_input, input_lengths)
 

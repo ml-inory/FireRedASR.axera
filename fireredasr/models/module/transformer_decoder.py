@@ -257,9 +257,9 @@ class DecoderScaledDotProductAttention(nn.Module):
 
     def forward(self, q, k, v, mask=None):
         attn = torch.matmul(q, k.transpose(2, 3)) / self.temperature
-        print(f"q.shape: {q.shape}")
-        print(f"k.shape: {k.shape}")
-        print(f"attn.shape: {attn.shape}")
+        # print(f"q.shape: {q.shape}")
+        # print(f"k.shape: {k.shape}")
+        # print(f"attn.shape: {attn.shape}")
         if mask is not None:
             mask = mask.eq(0)
             attn = attn.masked_fill(mask, -self.INF)

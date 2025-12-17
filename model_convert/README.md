@@ -31,6 +31,11 @@ python to_onnx.py
 
 运行完成后生成onnx_encoder和onnx_decoder目录
 
+## 生成数据
+
+```
+python generate_data.py --max_dur 输入时长
+```
 
 ## ONNX -> axmodel
 

@@ -38,14 +38,13 @@ class FireRedASRAxModel:
     def __init__(
         self, 
         encoder_path: str, 
-        decoder_main_path: str,
         decoder_loop_path: str,
         cmvn_file: str,
         dict_file: str, 
         spm_model_path: str,
-        providers=['AXCLRTExecutionProvider', 'AxEngineExecutionProvider'],
+        providers=['AxEngineExecutionProvider'],
         decode_max_len=128,
-        max_dur=10
+        audio_dur=10
     ):
         # NOTE: 参考whisper设置的最大的解码长度
         # FireRedASR-AED 模型支持的最长语音为 60s
@@ -53,8 +52,8 @@ class FireRedASRAxModel:
         self.decode_max_len = decode_max_len
         
         self.decoder_hidden_dim = 1280
-        self.max_dur = max_dur
-        self.max_feat_len = self.calc_feat_len(max_dur)
+        self.audio_dur = audio_dur
+        self.max_feat_len = self.calc_feat_len(audio_dur)
         self.num_decoder_blocks = 16
         self.blank_id = 0
         self.sos_id = 3
@@ -65,19 +64,12 @@ class FireRedASRAxModel:
         self.tokenizer = ChineseCharEnglishSpmTokenizer(dict_file, spm_model_path)
         
         self.init_encoder(encoder_path, providers)
-        self.init_decoder_main(decoder_main_path, providers)
         self.init_decoder_loop(decoder_loop_path, providers)
-        self.pe = self.init_pe(decoder_main_path)
+        self.pe = self.init_pe(decoder_loop_path)
         
     def init_encoder(self, encoder_path, providers=None):
         self.encoder = axe.InferenceSession(
             encoder_path,
-            providers=providers
-        )
-
-    def init_decoder_main(self, decoder_path, providers=None):
-        self.decoder_main = axe.InferenceSession(
-            decoder_path,
             providers=providers
         )
 
@@ -109,33 +101,6 @@ class FireRedASRAxModel:
             cross_attn_mask
         )
 
-    
-    def decode_main_one_token(
-        self,
-        tokens: np.ndarray,
-        n_layer_self_k_cache: np.ndarray,
-        n_layer_self_v_cache: np.ndarray,
-        n_layer_cross_k_cache: np.ndarray,
-        n_layer_cross_v_cache: np.ndarray,
-        pe: np.ndarray,
-        self_attn_mask: np.ndarray,
-        cross_attn_mask: np.ndarray
-    ) -> Tuple[Tensor, Tensor, Tensor]:
-        logits, out_n_layer_self_k_cache, out_n_layer_self_v_cache = self.decoder_main.run(
-            None,
-            {
-                "tokens": tokens,
-                "n_layer_cross_k": n_layer_cross_k_cache,
-                "n_layer_cross_v": n_layer_cross_v_cache,
-                "cross_attn_mask": cross_attn_mask,
-            }
-        )
-        return (
-            logits,
-            out_n_layer_self_k_cache,
-            out_n_layer_self_v_cache
-        )
-    
     def decode_loop_one_token(
         self,
         tokens: np.ndarray,
@@ -206,7 +171,6 @@ class FireRedASRAxModel:
         
         self_attn_mask = np.zeros((batch_size * beam_size, 1, 1), dtype=np.float32)
 
-        results = [self.sos_id]
         for i in range(self.decode_max_len):
 
             tokens = to_numpy(tokens).astype(np.int32)
@@ -219,19 +183,7 @@ class FireRedASRAxModel:
             self_attn_mask = np.zeros((batch_size * beam_size, 1, self.decode_max_len), dtype=np.float32)
             self_attn_mask[:, :, :self.decode_max_len - offset[0] - 1] = -np.inf
 
-            if i == 0:
-                logits, n_layer_self_k_cache, n_layer_self_v_cache = self.decode_main_one_token(
-                    to_numpy(tokens),
-                    to_numpy(n_layer_self_k_cache),
-                    to_numpy(n_layer_self_v_cache),
-                    to_numpy(n_layer_cross_k),
-                    to_numpy(n_layer_cross_v),
-                    self.pe[offset],
-                    self_attn_mask,
-                    to_numpy(cross_attn_mask)
-                )
-            else:
-                logits, n_layer_self_k_cache, n_layer_self_v_cache = self.decode_loop_one_token(
+            logits, n_layer_self_k_cache, n_layer_self_v_cache = self.decode_loop_one_token(
                     to_numpy(tokens),
                     to_numpy(n_layer_self_k_cache),
                     to_numpy(n_layer_self_v_cache),
@@ -349,6 +301,7 @@ class FireRedASRAxModel:
         if feats.shape[1] < self.max_feat_len:
             feats = np.concatenate([feats, np.zeros((1, self.max_feat_len - feats.shape[1], 80), dtype=np.float32)], axis=1)
         feats = feats[:, :self.max_feat_len, :]
+        lengths = torch.minimum(lengths, torch.tensor(self.max_feat_len))
 
         feats = to_numpy(feats)
         lengths = to_numpy(lengths).astype(np.int32)

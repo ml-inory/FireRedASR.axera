@@ -21,12 +21,6 @@ def parse_args():
         help="Path to axmodel encoder"
     )
     parser.add_argument(
-        "--decoder_main", 
-        type=str, 
-        default="axmodel/decoder_main.axmodel",
-        help="Path to axmodel decoder main"
-    )
-    parser.add_argument(
         "--decoder_loop", 
         type=str, 
         default="axmodel/decoder_loop.axmodel",
@@ -114,7 +108,7 @@ def main():
                                      args.dict,
                                      args.spm_model,
                                      decode_max_len=args.decode_max_len,
-                                     max_dur=args.max_dur
+                                     audio_dur=args.max_dur
                                      )
     
     wf = open(args.hypo, "wt")

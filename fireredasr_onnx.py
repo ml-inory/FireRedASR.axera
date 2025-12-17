@@ -52,7 +52,7 @@ class FireRedASROnnxModel:
         cmvn_file: str,
         dict_file: str, 
         spm_model_path: str,
-        providers=["CPUExecutionProvider"],
+        providers=["CUDAExecutionProvider"],
         decode_max_len=128,
         audio_dur=10
     ):
@@ -84,8 +84,6 @@ class FireRedASROnnxModel:
         self.init_decoder_main(decoder_path, providers)
         self.init_decoder_loop(decoder_path, providers)
         self.pe = self.init_pe(decoder_path)
-
-        self.saved_num = 0
         
     def init_encoder(self, encoder_path, providers=None):
         start_time = time.time()
@@ -287,9 +285,7 @@ class FireRedASROnnxModel:
         n_layer_cross_v, 
         cross_attn_mask,
         beam_size,
-        nbest,
-        decoder_data_path,
-        max_save_num=1
+        nbest
     ):
         
         num_layer, batch_size, Ti, encoder_out_dim = n_layer_cross_k.shape
@@ -359,25 +355,6 @@ class FireRedASROnnxModel:
 
             self_attn_mask = np.zeros((batch_size * beam_size, 1, self.decode_max_len), dtype=np.float32)
             self_attn_mask[:, :, :self.decode_max_len - offset[0] - 1] = -np.inf
-
-            if max_save_num > 0:
-                if self.saved_num < max_save_num:
-                    for name, npy in zip(
-                        ["tokens", "n_layer_self_k_cache", "n_layer_self_v_cache", "n_layer_cross_k", "n_layer_cross_v", "pe", "self_attn_mask", "cross_attn_mask"],
-                        [tokens, n_layer_self_k_cache, n_layer_self_v_cache, n_layer_cross_k, n_layer_cross_v, self.pe[offset], self_attn_mask, cross_attn_mask]
-                    ):
-                        file_path = os.path.join(decoder_data_path, name)
-                        os.makedirs(file_path, exist_ok=True)
-                        np.save(os.path.join(file_path, f"{i}.npy"), npy)
-            else:
-                for name, npy in zip(
-                        ["tokens", "n_layer_self_k_cache", "n_layer_self_v_cache", "n_layer_cross_k", "n_layer_cross_v", "pe", "self_attn_mask", "cross_attn_mask"],
-                        [tokens, n_layer_self_k_cache, n_layer_self_v_cache, n_layer_cross_k, n_layer_cross_v, self.pe[offset], self_attn_mask, cross_attn_mask]
-                    ):
-                        file_path = os.path.join(decoder_data_path, name)
-                        os.makedirs(file_path, exist_ok=True)
-                        np.save(os.path.join(file_path, f"{i}.npy"), npy)
-            
 
             if i == 0:
                 logits, n_layer_self_k_cache, n_layer_self_v_cache = self.decode_main_one_token(
@@ -516,26 +493,14 @@ class FireRedASROnnxModel:
                    nbest: int = 1
                 ) -> List[Dict]:
         feats, lengths, wav_durations = self.feature_extractor(batch_wav_path)
-        print(f"feats.shape: {feats.shape}")
-        print(f"lengths: {lengths}")
         maxlen = self.calc_feat_len(self.audio_dur)
-        print(f"maxlen: {maxlen}")
         if feats.shape[1] < maxlen:
             feats = np.concatenate([feats, np.zeros((1, maxlen - feats.shape[1], 80), dtype=np.float32)], axis=1)
         feats = feats[:, :maxlen, :]
         lengths = torch.minimum(lengths, torch.tensor(maxlen))
 
-        encoder_data_path = os.path.join("calib_dataset", "encoder", os.path.basename(batch_wav_path[0]))
-        decoder_data_path = os.path.join("calib_dataset", "decoder", os.path.basename(batch_wav_path[0]))
-        os.makedirs(encoder_data_path, exist_ok=True)
-        os.makedirs(decoder_data_path, exist_ok=True)
-
         feats = to_numpy(feats)
         lengths = to_numpy(lengths)
-
-        for name, npy in zip(["encoder_input", "encoder_input_lengths"], [feats, lengths]):
-            file_path = os.path.join(encoder_data_path, name + ".npy")
-            np.save(file_path, npy)
 
         start_time = time.time()
         n_layer_cross_k, n_layer_cross_v, cross_attn_mask = self.run_encoder(
@@ -546,11 +511,8 @@ class FireRedASROnnxModel:
                                       n_layer_cross_v,
                                       cross_attn_mask,
                                       beam_size,
-                                      nbest,
-                                      decoder_data_path,
-                                      max_save_num=-1)
-        self.saved_num += 1
-
+                                      nbest
+                                      )
         transcribe_durations = time.time() - start_time
         results: List[Dict] = []
         for wav, hyp in zip(batch_wav_path, nbest_hyps):
@@ -569,156 +531,3 @@ class FireRedASROnnxModel:
         return results, wav_durations, transcribe_durations   
  
  
-def parse_args():
-    parser = argparse.ArgumentParser(description="FireRedASROnnxModel Test")
-    parser.add_argument(
-        "--encoder", 
-        type=str, 
-        default="onnx_encoder/encoder.onnx",
-        help="Path to onnx encoder"
-    )
-    parser.add_argument(
-        "--decoder", 
-        type=str, 
-        default="onnx_decoder/decoder.onnx",
-        help="Path to onnx decoder"
-    )
-    parser.add_argument(
-        "--cmvn",
-        type=str,
-        default="pretrained_models/FireRedASR-AED-L/cmvn.ark",
-        help="Path to cmvn"
-    )
-    parser.add_argument(
-        "--dict",
-        type=str,
-        default="pretrained_models/FireRedASR-AED-L/dict.txt",
-        help="Path to dict"
-    )
-    parser.add_argument(
-        "--spm_model",
-        type=str,
-        default="pretrained_models/FireRedASR-AED-L/train_bpe1000.model",
-        help="Path to spm model"
-    )
-    parser.add_argument(
-        "--wavlist",
-        type=str,
-        default="wavlist.txt",
-        help="File to wav path list"
-    )
-    parser.add_argument(
-        "--hypo",
-        type=str,
-        default="hypo_onnx.txt",
-        help="File of hypos"
-    )
-    parser.add_argument(
-        "--beam_size",
-        type=int,
-        default=3,
-        help=""
-    )
-    parser.add_argument(
-        "--nbest",
-        type=int,
-        default=1,
-        help=""
-    )
-    parser.add_argument(
-        "--provider",
-        default="CPUExecutionProvider",
-        choices=['CUDAExecutionProvider', 'CPUExecutionProvider']
-    )
-    parser.add_argument(
-        "--max_len",
-        type=int,
-        default=128,
-        help=""
-    )
-    parser.add_argument(
-        "--max_dur",
-        type=int,
-        default=10,
-        help=""
-    )
-    
-    return parser.parse_args()
-    
-    
-def parse_wavlist(wavlist: str):
-    wavpaths = []
-    with open(wavlist) as f:
-        for line in f:
-            line = line.strip()
-            if not os.path.exists(line):
-                print(f"{line} doesn't exist.")
-                continue
-            wavpaths.append(line)
-            
-    return wavpaths
-    
-
-def main():
-    args = parse_args()
-    print(args)
-    
-    onnx_model = FireRedASROnnxModel(args.encoder,
-                                     args.decoder,
-                                     args.cmvn,
-                                     args.dict,
-                                     args.spm_model,
-                                     [args.provider],
-                                     args.max_len,
-                                     args.max_dur)
-    
-    wf = open(args.hypo, "wt")
-    wavlist = parse_wavlist(args.wavlist)
-
-    total_wav_durations = 0
-    total_transcribe_durations = 0
-    for wav in wavlist:
-        batch_wav = [wav]
-        results, wav_durations, transcribe_durations = onnx_model.transcribe(
-            batch_wav, args.beam_size, args.nbest)
-        
-        wav_durations = sum(wav_durations)
-        total_wav_durations += wav_durations
-        total_transcribe_durations += transcribe_durations
-        logger.info(f"{batch_wav}")
-        logger.info(f"Durations: {wav_durations}")
-        logger.info(f"Transcribe Durations: {transcribe_durations}")
-        rtf = transcribe_durations / wav_durations
-        logger.info(f"(Real time factor) RTF: {rtf}")
-        for result in results:
-            logger.info(f"wav: {result['wav']}")
-            logger.info(f"text: {result['text']}")
-            logger.info(f"score: {result['score']}")
-            logger.info("")
-            wf.write(f"{result['text']} ({result['wav']})\n")
-            
-    logger.info(f"total wav durations: {total_wav_durations}")
-    logger.info(f"total transcribe durations: {total_transcribe_durations}")
-    avg_ref = total_transcribe_durations / total_wav_durations
-    logger.info(f"AVG RTF: {avg_ref}")
-    
-    wf.close()
-
-    import tarfile as tf
-    import glob
-
-    with tf.open("./calib_dataset/encoder_input.tar.gz", "w:gz") as f:
-        for npy in glob.glob("./calib_dataset/encoder/*/encoder_input.npy"):
-            f.add(npy)
-
-    with tf.open("./calib_dataset/encoder_input_lengths.tar.gz", "w:gz") as f:
-        for npy in glob.glob("./calib_dataset/encoder/*/encoder_input_lengths.npy"):
-            f.add(npy)
-    
-    for decoder_input in ["tokens", "n_layer_self_k_cache", "n_layer_self_v_cache", "n_layer_cross_k", "n_layer_cross_v", "pe", "self_attn_mask", "cross_attn_mask"]:
-        with tf.open(f"./calib_dataset/{decoder_input}.tar.gz", "w:gz") as f:
-            for npy in glob.glob(f"./calib_dataset/decoder/*/{decoder_input}"):
-                f.add(npy)
-
-if __name__ == "__main__":
-    main()
