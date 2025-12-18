@@ -18,6 +18,7 @@ class ASRFeatExtractor:
         durs = []
         for wav_path in wav_paths:
             sample_rate, wav_np = kaldiio.load_mat(wav_path)
+
             dur = wav_np.shape[0] / sample_rate
             fbank = self.fbank((sample_rate, wav_np))
             if self.cmvn is not None:
@@ -28,6 +29,20 @@ class ASRFeatExtractor:
         lengths = torch.tensor([feat.size(0) for feat in feats]).long()
         feats_pad = self.pad_feat(feats, 0.0)
         return feats_pad, lengths, durs
+    
+    def run_chunk(self, wav_np, sample_rate):
+        feats = []
+
+        dur = wav_np.shape[0] / sample_rate
+        fbank = self.fbank((sample_rate, wav_np))
+        if self.cmvn is not None:
+            fbank = self.cmvn(fbank)
+        fbank = torch.from_numpy(fbank).float()
+        feats.append(fbank)
+
+        lengths = torch.tensor([feat.size(0) for feat in feats]).long()
+        feats_pad = self.pad_feat(feats, 0.0)
+        return feats_pad, lengths, dur
 
     def pad_feat(self, xs, pad_value):
         # type: (List[Tensor], int) -> Tensor

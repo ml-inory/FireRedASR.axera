@@ -18,6 +18,12 @@ FireRedASR-AED on Axera
 
 ## 安装依赖
 
+### Audio backend
+
+```
+sudo apt install libsnffile1
+```
+
 ### Python
 
 测试环境为Python 3.12，建议使用[Miniconda](https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh

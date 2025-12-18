@@ -4,5 +4,7 @@ kaldi_native_fbank>=1.15
 numpy>=1.26.1
 peft>=0.13.2
 sentencepiece
-torch>=2.0.0
+torch==2.6.0
 transformers>=4.46.3
+silero-vad
+torchaudio==2.6
