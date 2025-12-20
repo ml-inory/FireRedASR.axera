@@ -18,7 +18,7 @@ except Exception as e:
     print("Please run apt install libsnffile1 first")
     raise e
 
-from silero_vad import load_silero_vad, read_audio, get_speech_timestamps
+from silero_vad_axera import load_silero_vad, read_audio, get_speech_timestamps
 
 INF = 1e10
 
