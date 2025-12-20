@@ -44,7 +44,7 @@ def parse_args():
     parser.add_argument(
         "--hypo", type=str, default="hypo_axmodel.txt", help="File of hypos"
     )
-    parser.add_argument("--beam_size", type=int, default=3, help="")
+    parser.add_argument("--beam_size", type=int, default=1, help="")
     parser.add_argument("--nbest", type=int, default=1, help="")
     parser.add_argument("--decode_max_len", type=int, default=128, help="max token len")
     parser.add_argument("--max_dur", type=int, default=10, help="max audio len")

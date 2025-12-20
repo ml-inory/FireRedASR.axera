@@ -50,11 +50,6 @@ python generate_data.py --max_dur 输入时长
 pulsar2 build --input onnx_encoder/encoder.onnx --config encoder.json --output_dir axmodel_encoder --output_name encoder.axmodel
 ```
 
-#### decoder_main
-```
-pulsar2 build --input onnx_decoder/decoder_main.onnx --config decoder_main.json --output_dir axmodel_decoder_main --output_name decoder_main.axmodel
-```
-
 #### decoder_loop
 ```
 pulsar2 build --input onnx_decoder/decoder_loop.onnx --config decoder_loop.json --output_dir axmodel_decoder_loop --output_name decoder_loop.axmodel

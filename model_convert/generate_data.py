@@ -81,7 +81,7 @@ class FireRedASROnnxModel:
         self.audio_dur = audio_dur
         
         self.init_encoder(encoder_path, providers)
-        self.init_decoder_main(decoder_path, providers)
+        # self.init_decoder_main(decoder_path, providers)
         self.init_decoder_loop(decoder_path, providers)
         self.pe = self.init_pe(decoder_path)
 
@@ -377,21 +377,8 @@ class FireRedASROnnxModel:
                         file_path = os.path.join(decoder_data_path, name)
                         os.makedirs(file_path, exist_ok=True)
                         np.save(os.path.join(file_path, f"{i}.npy"), npy)
-            
 
-            if i == 0:
-                logits, n_layer_self_k_cache, n_layer_self_v_cache = self.decode_main_one_token(
-                    to_numpy(tokens),
-                    to_numpy(n_layer_self_k_cache),
-                    to_numpy(n_layer_self_v_cache),
-                    to_numpy(n_layer_cross_k),
-                    to_numpy(n_layer_cross_v),
-                    self.pe[0],
-                    self_attn_mask,
-                    to_numpy(cross_attn_mask)
-                )
-            else:
-                logits, n_layer_self_k_cache, n_layer_self_v_cache = self.decode_loop_one_token(
+            logits, n_layer_self_k_cache, n_layer_self_v_cache = self.decode_loop_one_token(
                     to_numpy(tokens),
                     to_numpy(n_layer_self_k_cache),
                     to_numpy(n_layer_self_v_cache),
@@ -401,17 +388,6 @@ class FireRedASROnnxModel:
                     self_attn_mask,
                     to_numpy(cross_attn_mask)
                 )
-
-            # logits, n_layer_self_k_cache, n_layer_self_v_cache = self.decode_loop_one_token(
-            #         to_numpy(tokens),
-            #         to_numpy(n_layer_self_k_cache),
-            #         to_numpy(n_layer_self_v_cache),
-            #         to_numpy(n_layer_cross_k),
-            #         to_numpy(n_layer_cross_v),
-            #         self.pe[offset],
-            #         self_attn_mask,
-            #         to_numpy(cross_attn_mask)
-            #     )
             
             offset += 1
             logits = torch.from_numpy(logits)

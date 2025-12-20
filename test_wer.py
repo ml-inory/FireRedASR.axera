@@ -184,12 +184,6 @@ def get_args():
         help="Path to onnx encoder",
     )
     parser.add_argument(
-        "--decoder_main",
-        type=str,
-        default="axmodel/decoder_main.axmodel",
-        help="Path to axmodel decoder main",
-    )
-    parser.add_argument(
         "--decoder_loop",
         type=str,
         default="axmodel/decoder_loop.axmodel",
@@ -213,7 +207,7 @@ def get_args():
     parser.add_argument(
         "--hypo", type=str, default="hypo_axmodel.txt", help="File of hypos"
     )
-    parser.add_argument("--beam_size", type=int, default=3, help="")
+    parser.add_argument("--beam_size", type=int, default=1, help="")
     parser.add_argument("--nbest", type=int, default=1, help="")
     parser.add_argument("--max_len", type=int, default=128, help="")
     return parser.parse_args()

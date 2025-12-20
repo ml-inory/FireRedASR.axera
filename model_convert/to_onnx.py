@@ -168,7 +168,7 @@ def export_decoder(fireredasr_model, args,
                    n_layer_cross_k,
                    n_layer_cross_v,
                    cross_attn_mask):
-    beam_size = 3
+    beam_size = args.beam_size
     
     decoder = model_wrapper.TextDecoderTensorCache(
         fireredasr_model.decoder)
@@ -204,52 +204,6 @@ def export_decoder(fireredasr_model, args,
             1280
         )
     )
-
-    # decoder main
-    decoder = model_wrapper.TextDecoderTensorCacheV2(
-        fireredasr_model.decoder, loop=False)
-    decoder.eval()
-
-    self_attn_mask = torch.empty(batch_size * beam_size, 
-                                 tokens.shape[-1], tokens.shape[-1]
-                                 ).fill_(-np.inf).triu_(1) # fill_(-np.inf)
-    self_attn_mask = self_attn_mask[:, -1:, :]
-
-    pe = decoder.decoder.positional_encoding.pe[0]
-
-    if not os.path.exists(args.decoder):
-        os.makedirs(args.decoder, exist_ok=True)
-    onnx_decoder_file = os.path.join(args.decoder, "decoder_main.onnx")
-
-    with torch.no_grad():
-        torch.onnx.export(
-            decoder,
-            (tokens,
-            n_layer_self_k_cache,
-            n_layer_self_v_cache,
-            n_layer_cross_k,
-            n_layer_cross_v,
-            pe[0],
-            self_attn_mask,
-            cross_attn_mask),
-            onnx_decoder_file,
-            export_params=True,
-            opset_version=13,
-            verbose=False,
-            input_names=["tokens",
-                        "in_n_layer_self_k_cache",
-                        "in_n_layer_self_v_cache",
-                        "n_layer_cross_k",
-                        "n_layer_cross_v",
-                        "pe",
-                        "self_attn_mask",
-                        "cross_attn_mask"],
-            output_names=["logits",
-                        "out_n_layer_self_k_cache",
-                        "out_n_layer_self_v_cache"],
-            external_data=True
-        )
-    print(f"Export decoder_main to {onnx_decoder_file}")
 
     # decoder loop
     self_attn_mask = torch.empty(batch_size * beam_size, 
@@ -324,6 +278,7 @@ def parse_args():
         default="pretrained_models/FireRedASR-AED-L/cmvn.ark",
         help="cmvn.ark file"
     )
+    parser.add_argument("--beam_size", type=int, default=3, help="")
     parser.add_argument(
         "--decode_max_len",
         type=int,
