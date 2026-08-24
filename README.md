@@ -81,4 +81,4 @@ C++ 端到端 SDK 见 `cpp/README.md`。
 - `pulsar2_configs/`：可复现编译配置；
 - `reports/`：对比报告与加速方案；
 - `fsmn_vad/`：FSMN-VAD NPU 模型 + 编译配置 + 校准脚本；
-- 详见 [README_7.0.md](README_7.0.md) 与 [cpp/README.md](cpp/README.md)。
+- 详见 [cpp/README.md](cpp/README.md) 与 [reports/](reports/)。
