@@ -62,8 +62,8 @@ Python（板端，FSMN-VAD + ASR 全 NPU）：
 ```bash
 conda activate fireredasr
 python openai/openai_server.py \
-  --encoder axmodel/encoder_u16_7.0.axmodel \
-  --decoder axmodel/decoder_loop_u8_dense_7.0.axmodel \
+  --encoder axmodel/encoder.axmodel \
+  --decoder axmodel/decoder_loop.axmodel \
   --fsmn-vad fsmn_vad/fsmn_vad_10s_fp32.axmodel \
   --fsmn-cmvn fsmn_vad/am.mvn \
   --cmvn axmodel/cmvn.ark --dict axmodel/dict.txt \

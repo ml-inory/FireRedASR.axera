@@ -5,8 +5,8 @@ AX650N 上的 7.0-lite 重转换模型与端到端 C++ SDK（板端 VAD + fbank 
 
 ## 模型
 
-- `axmodel/encoder_u16_7.0.axmodel`（encoder U16）
-- `axmodel/decoder_loop_u8_dense_7.0.axmodel`（decoder U8 密集校准）
+- `axmodel/encoder.axmodel`（encoder U16）
+- `axmodel/decoder_loop.axmodel`（decoder U8 密集校准）
 
 ## 指标（AX650N，4 条测试语音）
 
