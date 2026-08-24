@@ -28,7 +28,7 @@ FireRedASR-AED on Axera
 ### Audio backend
 
 ```
-sudo apt install libsnffile1
+sudo apt install libsndfile1
 ```
 
 ### Python
@@ -57,10 +57,21 @@ pip install axengine-0.1.3-py3-none-any.whl
 
 ## 使用
 
-```
+Python（板端，FSMN-VAD + ASR 全 NPU）：
+
+```bash
 conda activate fireredasr
-python test_ax_model.py
+python openai/openai_server.py \
+  --encoder axmodel/encoder_u16_7.0.axmodel \
+  --decoder axmodel/decoder_loop_u8_dense_7.0.axmodel \
+  --fsmn-vad fsmn_vad/fsmn_vad_10s_fp32.axmodel \
+  --fsmn-cmvn fsmn_vad/am.mvn \
+  --cmvn axmodel/cmvn.ark --dict axmodel/dict.txt \
+  --pe axmodel/pe.npy --max-dur 10 --max-steps 128
 ```
+
+单文件转写可调用 `openai/firered_asr.py` 的 `FireredASR`；
+C++ 端到端 SDK 见 `cpp/README.md`。
 
 ## Pulsar2 7.0-lite 重转换 + C++ SDK（2026-08）
 
