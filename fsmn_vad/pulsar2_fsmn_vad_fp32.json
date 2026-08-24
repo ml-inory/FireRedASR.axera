@@ -1,0 +1,55 @@
+{
+  "model_type": "ONNX",
+  "input": "./fsmnvad_offline_10s.onnx",
+  "output_dir": "./compile",
+  "output_name": "fsmn_vad_10s_fp32.axmodel",
+  "work_dir": "./compile/work_fsmn_vad_fp32",
+  "target_hardware": "AX650",
+  "npu_mode": "NPU3",
+  "input_shapes": "speech:1x998x400",
+  "onnx_opt": {
+    "disable_onnx_optimization": false,
+    "enable_onnxsim": false,
+    "model_check": true
+  },
+  "quant": {
+    "input_configs": [
+      {
+        "tensor_name": "speech",
+        "calibration_dataset": "./calib_data/fsmn_speech.tar.gz",
+        "calibration_format": "Numpy",
+        "calibration_size": -1,
+        "calibration_mean": [],
+        "calibration_std": []
+      }
+    ],
+    "calibration_method": "MinMax",
+    "precision_analysis": true,
+    "precision_analysis_method": "EndToEnd",
+    "highest_mix_precision": false,
+    "layer_configs": [
+      {
+        "start_tensor_names": [
+          "DEFAULT"
+        ],
+        "end_tensor_names": [
+          "DEFAULT"
+        ],
+        "data_type": "FP32"
+      }
+    ],
+    "conv_bias_data_type": "FP32",
+    "enable_smooth_quant": true,
+    "disable_auto_refine_scale": true,
+    "transformer_opt_level": 1
+  },
+  "compiler": {
+    "check": 0
+  },
+  "input_processors": [
+    {
+      "tensor_name": "speech",
+      "src_dtype": "FP32"
+    }
+  ]
+}
